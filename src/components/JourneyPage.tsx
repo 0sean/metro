@@ -98,7 +98,7 @@ export default function JourneyPage({
         </div>
         <div className="px-4 py-2 bg-gradient-to-b from-neutral-400/10 to-neutral-900/10 w-fit ring-2 ring-neutral-400/5 ring-inset flex justify-center items-center gap-2 rounded-full shadow">
           <h2 className="font-medium text-2xs text-neutral-400">
-            Platform {journeys[slide].platform}
+            Platform {(journeys[slide || 0] || {}).platform}
           </h2>
         </div>
       </div>
