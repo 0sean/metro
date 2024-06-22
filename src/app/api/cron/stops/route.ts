@@ -9,6 +9,8 @@ import {
 import { NextRequest } from "next/server";
 import * as cheerio from "cheerio";
 
+export const dynamic = "force-dynamic";
+
 type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
 
 const prisma = new PrismaClient();
