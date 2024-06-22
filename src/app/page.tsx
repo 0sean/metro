@@ -11,8 +11,7 @@ export default async function Home() {
       <div className="max-w-full w-96 flex flex-col gap-2">
         <h1 className="font-semibold text-3xl">Metro</h1>
         <h2 className="font-medium text-sm text-neutral-400 pb-2">
-          An unofficial Tyne & Wear Metro <br />
-          timetable with real-time information
+          An unofficial Tyne & Wear Metro timetable
         </h2>
         <StationForm stations={stations} />
       </div>
