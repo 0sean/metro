@@ -14,6 +14,15 @@ export default async function Home() {
           An unofficial Tyne & Wear Metro timetable
         </h2>
         <StationForm stations={stations} />
+        <div className="flex justify-center w-full absolute bottom-8 left-0">
+          <a
+            href="https://transit.fyi/"
+            className="text-sm text-neutral-500 hover:text-neutral-300 transition-colors"
+            target="_blank"
+          >
+            A <span className="font-semibold">Transit.fyi</span> project
+          </a>
+        </div>
       </div>
     </div>
   );
