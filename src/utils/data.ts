@@ -1,5 +1,6 @@
 import { Day, PrismaClient, Stop } from "@prisma/client";
 import { cache } from "react";
+import { toZonedTime } from "date-fns-tz";
 
 const prisma = new PrismaClient();
 
@@ -34,15 +35,20 @@ export const getStation = cache(async (code: string) => {
 
 export const getJourneys = cache(
   async (from: number, to: number): Promise<Journey[]> => {
+    const now = new Date();
+    const londonDate =
+      now.getTimezoneOffset() != 0 ? now : toZonedTime(now, "Europe/London");
+    const londonDay = londonDate.getDay();
+
     const stops = await prisma.stop.findMany({
       where: {
         platform: {
           stationId: from,
         },
         day:
-          new Date().getDay() == 6
+          londonDay == 6
             ? Day.Saturday
-            : new Date().getDay() == 0
+            : londonDay == 0
               ? Day.Sunday
               : Day.Weekday,
       },
