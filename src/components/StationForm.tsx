@@ -2,22 +2,13 @@
 
 import { useState } from "react";
 import StationSelect from "./StationSelect";
-import type { getStations } from "@/utils/data";
 import { useRouter } from "next/navigation";
-import { Line } from "@prisma/client";
 import { SingleValue } from "react-select";
+import { Station } from "@/utils/data";
 
-export default function StationForm({
-  stations,
-}: {
-  stations: Awaited<ReturnType<typeof getStations>>;
-}) {
-  const [from, setFrom] = useState<
-      SingleValue<{ label: string; value: string; lines: Line[] }> | undefined
-    >(undefined),
-    [to, setTo] = useState<
-      SingleValue<{ label: string; value: string; lines: Line[] }> | undefined
-    >(undefined),
+export default function StationForm({ stations }: { stations: Station[] }) {
+  const [from, setFrom] = useState<SingleValue<Station> | undefined>(undefined),
+    [to, setTo] = useState<SingleValue<Station> | undefined>(undefined),
     router = useRouter();
   return (
     <>

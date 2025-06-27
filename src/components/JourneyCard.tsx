@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { Ref, forwardRef, useMemo } from "react";
-import type { RTIJourney } from "@/utils/data";
 
 function calculateY(relativeSlide: number) {
   switch (relativeSlide) {
@@ -36,7 +35,6 @@ const JourneyCard = (
     stops,
     line,
     currentTime,
-    rti,
   }: {
     relativeSlide: number;
     selected: boolean;
@@ -45,7 +43,6 @@ const JourneyCard = (
     stops: number;
     line: "GRN" | "YEL";
     currentTime: Date;
-    rti: RTIJourney | undefined;
   },
   ref: Ref<HTMLDivElement>,
 ) => {
@@ -108,11 +105,6 @@ const JourneyCard = (
                 ? "Now"
                 : `${timeUntilDeparting} minutes ago`}
           </h2>
-          {rti && (
-            <h3 className="font-medium text-2xs text-neutral-400">
-              {rti.lastEvent}
-            </h3>
-          )}
         </div>
       </motion.div>
       {relativeSlide == 0 && (

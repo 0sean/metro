@@ -3,8 +3,6 @@
 import JourneyCard from "@/components/JourneyCard";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { Journey, RTIJourney, getJourneys } from "@/utils/data";
-import useSWR from "swr";
 
 import {
   FiChevronRight,
@@ -13,69 +11,53 @@ import {
   FiCheck,
 } from "react-icons/fi";
 import { useRouter } from "next/navigation";
-import { Station } from "@prisma/client";
+import { Journey } from "@/utils/data";
+import { formatStopName } from "@/utils/buslaneClient";
 
-export default function JourneyPage({
-  from,
-  to,
-  stops,
-}: {
-  from: Station;
-  to: Station;
-  stops: Journey[];
-}) {
+export default function JourneyPage({ journeys }: { journeys: Journey[] }) {
   const [slide, setSlide] = useState(0),
     [selected, setSelected] = useState(false),
     [currentTime, setCurrentTime] = useState(new Date()),
-    journeys = useMemo(
-      //   () => [
-      //     { id: 1, departs: "22:50", arrives: "22:57", stops: 1, line: "GRN" },
-      //     { id: 2, departs: "22:58", arrives: "23:00", stops: 1, line: "GRN" },
-      //     { id: 3, departs: "23:09", arrives: "23:14", stops: 1, line: "GRN" },
-      //     { id: 4, departs: "23:15", arrives: "23:23", stops: 1, line: "GRN" },
-      //     { id: 5, departs: "23:17", arrives: "23:19", stops: 1, line: "YEL" },
-      //   ],
-      () =>
-        stops.map((s) => ({
-          id: s[0]?.id,
-          departs: `${s[0]?.time.toString().substring(0, 2)}:${s[0]?.time.toString().substring(2, 4)}`,
-          arrives: `${s[1]?.time.toString().substring(0, 2)}:${s[1]?.time.toString().substring(2, 4)}`,
-          stops: s[2],
-          line: s[1]?.line,
-          platform: s[2],
-        })),
-      [stops],
-    ),
+    [filterTime, setFilterTime] = useState(new Date()),
     filteredJourneys = useMemo(
       () =>
         journeys
           .filter((j) => {
+            const isWeekday = filterTime.getDay() % 6 !== 0;
+            return (
+              (isWeekday && j.day == "weekday") ||
+              (filterTime.getDay() === 6 && j.day == "saturday") ||
+              (filterTime.getDay() === 0 && j.day == "sunday")
+            );
+          })
+          .filter((j) => {
             return (
               new Date(
-                `${new Date().toISOString().split("T")[0]}T${j.departs}`,
-              ) >= currentTime
+                `${new Date().toISOString().split("T")[0]}T${j.from.departure_time}`,
+              ) >= filterTime
             );
           })
           .sort(
             (a, b) =>
               new Date(
-                `${new Date().toISOString().split("T")[0]}T${a.departs}`,
+                `${new Date().toISOString().split("T")[0]}T${a.from.departure_time}`,
               ).getTime() -
               new Date(
-                `${new Date().toISOString().split("T")[0]}T${b.departs}`,
+                `${new Date().toISOString().split("T")[0]}T${b.from.departure_time}`,
               ).getTime(),
           )
           .slice(0, 5),
-      [journeys, currentTime],
+      [journeys, filterTime],
     ),
     router = useRouter();
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (selected) return;
       const date = new Date();
       date.setSeconds(0, 0);
       setCurrentTime(date);
+      if (selected) return;
+      setFilterTime(date);
     }, 1000);
     return () => clearInterval(interval);
   }, [selected]);
@@ -92,13 +74,18 @@ export default function JourneyPage({
           >
             <FiArrowLeft />
           </button>
-          <h1 className="font-semibold">{from.name}</h1>
+          <h1 className="font-semibold">
+            {journeys[0] && formatStopName(journeys[0].from.stop.name)}
+          </h1>
           <FiChevronRight />
-          <h1 className="font-semibold">{to.name}</h1>
+          <h1 className="font-semibold">
+            {journeys[0] && formatStopName(journeys[0].to.stop.name)}
+          </h1>
         </div>
         <div className="px-4 py-2 bg-gradient-to-b from-neutral-400/10 to-neutral-900/10 w-fit ring-2 ring-neutral-400/5 ring-inset flex justify-center items-center gap-2 rounded-full shadow">
           <h2 className="font-medium text-2xs text-neutral-400">
-            Platform {(journeys[slide || 0] || {}).platform}
+            Platform{" "}
+            {journeys[0] && journeys[slide || 0].from.stop.platform_code}
           </h2>
         </div>
       </div>
@@ -111,15 +98,14 @@ export default function JourneyPage({
         <AnimatePresence mode="popLayout">
           {filteredJourneys.map((j, i) => (
             <JourneyCard
-              key={j.id}
+              key={j.from.trip_id}
               relativeSlide={i - slide}
               selected={selected}
-              departs={j.departs}
-              arrives={j.arrives}
-              stops={j.stops}
+              departs={j.from.departure_time.split(":").slice(0, 2).join(":")}
+              arrives={j.to.arrival_time.split(":").slice(0, 2).join(":")}
+              stops={j.to.stop_sequence - j.from.stop_sequence}
               line={j.line as "GRN" | "YEL"}
               currentTime={currentTime}
-              rti={undefined}
             />
           ))}
         </AnimatePresence>
