@@ -1,104 +1,88 @@
-import { Day, PrismaClient, Stop } from "@prisma/client";
 import { cache } from "react";
-import { toZonedTime } from "date-fns-tz";
 
-const prisma = new PrismaClient();
+import { formatStopName, getTrips, Service, StopTime } from "./buslaneClient";
 
-export const getStations = cache(async () => {
-  const stations = await prisma.station.findMany({
-    include: {
-      platforms: {
-        include: {
-          stops: {
-            distinct: ["line"],
-            select: {
-              line: true,
-            },
-          },
-        },
-      },
-    },
-  });
+export type Line = "GRN" | "YEL";
 
-  return stations;
-});
+export type Station = { label: string; value: string; lines: Line[] };
 
-export const getStation = cache(async (code: string) => {
-  const station = await prisma.station.findFirstOrThrow({
-    where: {
-      code,
-    },
-  });
+function toSlug(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "-");
+}
 
-  return station;
-});
+export const getStations = cache(async (): Promise<Station[]> => {
+  const trips = await getTrips();
 
-export const getJourneys = cache(
-  async (from: number, to: number): Promise<Journey[]> => {
-    const now = new Date();
-    const londonDate =
-      now.getTimezoneOffset() != 0 ? now : toZonedTime(now, "Europe/London");
-    const londonDay = londonDate.getDay();
+  const stationMap = new Map<string, Set<Line>>();
 
-    const stops = await prisma.stop.findMany({
-      where: {
-        platform: {
-          stationId: from,
-        },
-        day:
-          londonDay == 6
-            ? Day.Saturday
-            : londonDay == 0
-              ? Day.Sunday
-              : Day.Weekday,
-      },
-      include: {
-        service: {
-          include: {
-            stops: {
-              include: {
-                platform: true,
-              },
-            },
-          },
-        },
-      },
+  trips.forEach((trip) => {
+    trip.stop_times.forEach((stopTime) => {
+      const name = formatStopName(stopTime.stop.name);
+      const line = trip.line;
+      if (!stationMap.has(name)) {
+        stationMap.set(name, new Set());
+      }
+      stationMap.get(name)!.add(line);
     });
+  });
 
-    return stops
-      .map(
-        (s) =>
-          [
-            s,
+  return Array.from(stationMap.entries()).map(([name, linesSet]) => ({
+    label: name,
+    value: toSlug(name),
+    lines: Array.from(linesSet),
+  }));
+});
 
-            s.service?.stops
-              .sort((a, b) => a.time - b.time)
-              .find((ss) => ss.platform.stationId == to && ss.time > s.time),
-
-            s.service?.stops
-              .sort((a, b) => a.time - b.time)
-              .findIndex(
-                (ss) => ss.platform.stationId == to && ss.time > s.time,
-              )! -
-              s.service?.stops
-                .sort((a, b) => a.time - b.time)
-                .findIndex((ss) => ss.id == s.id)!,
-
-            s.service?.stops.find((ss) => ss.id == s.id)?.platform.number,
-          ] as Journey,
-      )
-      .filter((s) => s[1] != null);
+export const getStation = cache(
+  async (slug: string): Promise<Station | null> => {
+    const stations = await getStations();
+    return stations.find((s) => toSlug(s.label) === slug) || null;
   },
 );
 
-export type Journey = [Stop, Stop, number, number];
+type Day = "weekday" | "saturday" | "sunday";
 
-export type RTIJourney = {
-  trn: string;
-  lastEvent: string;
-  lastEventLocation: string;
-  lastEventTime: string;
-  destination: string;
-  dueIn: number;
-  line: "GREEN" | "YELLOW";
+export type Journey = {
+  from: StopTime;
+  to: StopTime;
+  line: Line;
+  day: Day;
 };
+
+function getDay(service: Service) {
+  if (service.saturday) return "saturday";
+  if (service.sunday) return "sunday";
+  return "weekday";
+}
+
+export const getJourneys = cache(async (from: string, to: string) => {
+  const trips = await getTrips(),
+    validTrips = trips.filter((t) => {
+      const fromStop = t.stop_times.find(
+          (st) => toSlug(formatStopName(st.stop.name)) === from,
+        ),
+        toStop = t.stop_times.find(
+          (st) => toSlug(formatStopName(st.stop.name)) === to,
+        );
+
+      return (
+        fromStop && toStop && fromStop.stop_sequence < toStop.stop_sequence
+      );
+    });
+
+  return validTrips.map((trip) => {
+    const fromStop = trip.stop_times.find(
+        (st) => toSlug(formatStopName(st.stop.name)) === from,
+      )!,
+      toStop = trip.stop_times.find(
+        (st) => toSlug(formatStopName(st.stop.name)) === to,
+      )!;
+
+    return {
+      from: fromStop,
+      to: toStop,
+      line: trip.line,
+      day: getDay(trip.service),
+    } as Journey;
+  });
+});
