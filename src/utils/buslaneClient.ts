@@ -2,7 +2,8 @@ const BASE_URL = process.env.BUSLANE_BASE_URL || "http://localhost:3000",
   API_KEY = process.env.BUSLANE_API_KEY,
   AGENCY_ID = "OP241";
 
-async function get<T>(url: string, cache: boolean = true): Promise<T> {
+async function get<T>(url: string, tag: string): Promise<T> {
+  const date = new Date().toDateString().split("T")[0];
   return await (
     await fetch(`${BASE_URL}/api${url}`, {
       method: "GET",
@@ -10,7 +11,8 @@ async function get<T>(url: string, cache: boolean = true): Promise<T> {
         "Content-Type": "application/json",
         Authorization: `Bearer ${API_KEY}`,
       },
-      cache: "no-store",
+      cache: "force-cache",
+      next: { tags: [`${tag}:${date}`] },
     })
   ).json();
 }
@@ -26,7 +28,7 @@ type Route = {
 };
 
 async function getRoutes(): Promise<Route[]> {
-  return await get<Route[]>("/timetables/agencies/OP241/routes");
+  return await get<Route[]>("/timetables/agencies/OP241/routes", "routes");
 }
 
 type Trip = {
@@ -100,7 +102,7 @@ export async function getTrips(): Promise<TripWithLine[]> {
   return await routes.reduce<Promise<TripWithLine[]>>(async (acc, route) => {
     const trips = await get<Trip[]>(
       `/timetables/routes/${route.id}/trips`,
-      false,
+      `trips:${route.id}`,
     );
 
     return [
