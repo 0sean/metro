@@ -10,10 +10,7 @@ async function get<T>(url: string, cache: boolean = true): Promise<T> {
         "Content-Type": "application/json",
         Authorization: `Bearer ${API_KEY}`,
       },
-      next: {
-        revalidate: cache ? 43200 : undefined,
-      },
-      cache: cache ? undefined : "no-store",
+      cache: "no-store",
     })
   ).json();
 }
@@ -105,6 +102,7 @@ export async function getTrips(): Promise<TripWithLine[]> {
       `/timetables/routes/${route.id}/trips`,
       false,
     );
+
     return [
       ...(await acc),
       ...trips.map((trip) => ({ ...trip, line: route.short_name })),
