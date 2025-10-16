@@ -7,6 +7,8 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Metro",
   description: "An unofficial Tyne & Wear Metro timetable",
+  manifest: "/manifest.json",
+  themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({
