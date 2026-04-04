@@ -1,6 +1,8 @@
 import JourneyPage from "@/components/JourneyPage";
 import { getJourneys } from "@/utils/data";
 
+export const revalidate = 86400;
+
 export default async function Journeys({
   params,
 }: {
