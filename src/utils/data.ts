@@ -78,6 +78,12 @@ export const getJourneys = cache(async (from: string, to: string) => {
         (st) => toSlug(formatStopName(st.stop.name)) === to,
       )!;
 
+    if (!trip.service) {
+      throw new Error(
+        `Trip ${trip.id} on route ${trip.route_id} has no service (vehicle_journey_code: ${trip.vehicle_journey_code})`,
+      );
+    }
+
     return {
       from: fromStop,
       to: toStop,
