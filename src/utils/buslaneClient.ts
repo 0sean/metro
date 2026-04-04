@@ -4,17 +4,21 @@ const BASE_URL = process.env.BUSLANE_BASE_URL || "http://localhost:3000",
 
 async function get<T>(url: string, tag: string): Promise<T> {
   const date = new Date().toDateString().split("T")[0];
-  return await (
-    await fetch(`${BASE_URL}/api${url}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${API_KEY}`,
-      },
-      cache: "force-cache",
-      next: { tags: [`${tag}:${date}`] },
-    })
-  ).json();
+  const response = await fetch(`${BASE_URL}/api${url}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${API_KEY}`,
+    },
+    cache: "force-cache",
+    next: { tags: [`${tag}:${date}`] },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Buslane API error: ${response.status} ${response.statusText}`,
+    );
+  }
+  return response.json();
 }
 
 type Route = {
@@ -98,18 +102,26 @@ type Stop = {
 
 export async function getTrips(): Promise<TripWithLine[]> {
   const routes = await getRoutes();
+  if (!Array.isArray(routes)) {
+    throw new Error("Buslane API returned unexpected data for routes");
+  }
 
-  return await routes.reduce<Promise<TripWithLine[]>>(async (acc, route) => {
-    const trips = await get<Trip[]>(
-      `/timetables/routes/${route.id}/trips`,
-      `trips:${route.id}`,
-    );
+  const results = await Promise.all(
+    routes.map(async (route) => {
+      const trips = await get<Trip[]>(
+        `/timetables/routes/${route.id}/trips`,
+        `trips:${route.id}`,
+      );
+      if (!Array.isArray(trips)) {
+        throw new Error(
+          `Buslane API returned unexpected data for trips on route ${route.id}`,
+        );
+      }
+      return trips.map((trip) => ({ ...trip, line: route.short_name }));
+    }),
+  );
 
-    return [
-      ...(await acc),
-      ...trips.map((trip) => ({ ...trip, line: route.short_name })),
-    ];
-  }, Promise.resolve([]));
+  return results.flat();
 }
 
 export function formatStopName(name: string): string {
