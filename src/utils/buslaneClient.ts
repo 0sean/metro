@@ -3,15 +3,13 @@ const BASE_URL = process.env.BUSLANE_BASE_URL || "http://localhost:3000",
   AGENCY_ID = "OP241";
 
 async function get<T>(url: string, tag: string): Promise<T> {
-  const date = new Date().toDateString().split("T")[0];
   const response = await fetch(`${BASE_URL}/api${url}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${API_KEY}`,
     },
-    cache: "force-cache",
-    next: { tags: [`${tag}:${date}`] },
+    next: { revalidate: 86400, tags: [tag] },
   });
   if (!response.ok) {
     throw new Error(
@@ -32,7 +30,10 @@ type Route = {
 };
 
 async function getRoutes(): Promise<Route[]> {
-  return await get<Route[]>("/timetables/agencies/OP241/routes", "routes");
+  return await get<Route[]>(
+    `/timetables/agencies/${AGENCY_ID}/routes`,
+    "routes",
+  );
 }
 
 type Trip = {
