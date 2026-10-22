@@ -13,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { Journey } from "@/utils/data";
 import { formatStopName } from "@/utils/buslaneClient";
+import { getJourneyKey, getUpcomingJourneys } from "@/utils/journeys";
 
 export default function JourneyPage({ journeys }: { journeys: Journey[] }) {
   const [slide, setSlide] = useState(0),
@@ -20,36 +21,11 @@ export default function JourneyPage({ journeys }: { journeys: Journey[] }) {
     [currentTime, setCurrentTime] = useState(new Date()),
     [filterTime, setFilterTime] = useState(new Date()),
     filteredJourneys = useMemo(
-      () =>
-        journeys
-          .filter((j) => {
-            const isWeekday = filterTime.getDay() % 6 !== 0;
-            return (
-              (isWeekday && j.day == "weekday") ||
-              (filterTime.getDay() === 6 && j.day == "saturday") ||
-              (filterTime.getDay() === 0 && j.day == "sunday")
-            );
-          })
-          .filter((j) => {
-            return (
-              new Date(
-                `${new Date().toISOString().split("T")[0]}T${j.from.departure_time}`,
-              ) >= filterTime
-            );
-          })
-          .sort(
-            (a, b) =>
-              new Date(
-                `${new Date().toISOString().split("T")[0]}T${a.from.departure_time}`,
-              ).getTime() -
-              new Date(
-                `${new Date().toISOString().split("T")[0]}T${b.from.departure_time}`,
-              ).getTime(),
-          )
-          .slice(0, 5),
+      () => getUpcomingJourneys(journeys, filterTime),
       [journeys, filterTime],
     ),
-    router = useRouter();
+    router = useRouter(),
+    activeSlide = Math.min(slide, Math.max(0, filteredJourneys.length - 1));
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -85,7 +61,7 @@ export default function JourneyPage({ journeys }: { journeys: Journey[] }) {
         <div className="px-4 py-2 bg-gradient-to-b from-neutral-400/10 to-neutral-900/10 w-fit ring-2 ring-neutral-400/5 ring-inset flex justify-center items-center gap-2 rounded-full shadow">
           <h2 className="font-medium text-2xs text-neutral-400">
             Platform{" "}
-            {journeys[0] && journeys[slide || 0].from.stop.platform_code}
+            {filteredJourneys[activeSlide]?.from.stop.platform_code ?? "—"}
           </h2>
         </div>
       </div>
@@ -93,13 +69,18 @@ export default function JourneyPage({ journeys }: { journeys: Journey[] }) {
       <motion.div
         className="flex flex-col w-full max-w-96"
         style={{ height: 111 }}
-        animate={{ y: slide * -55 }}
+        animate={{ y: activeSlide * -55 }}
       >
+        {filteredJourneys.length === 0 && (
+          <p className="text-center text-neutral-400">
+            No more scheduled departures today.
+          </p>
+        )}
         <AnimatePresence mode="popLayout">
           {filteredJourneys.map((j, i) => (
             <JourneyCard
-              key={j.from.trip_id}
-              relativeSlide={i - slide}
+              key={getJourneyKey(j)}
+              relativeSlide={i - activeSlide}
               selected={selected}
               departs={j.from.departure_time.split(":").slice(0, 2).join(":")}
               arrives={j.to.arrival_time.split(":").slice(0, 2).join(":")}
@@ -122,15 +103,16 @@ export default function JourneyPage({ journeys }: { journeys: Journey[] }) {
                 key="left"
                 exit={{ opacity: 0 }}
                 className="p-3 bg-gradient-to-bl from-neutral-400/10 to-neutral-900/10 ring-1 ring-neutral-300/5 ring-inset font-medium text-neutral-50 rounded-full hover:scale-110 hover:shadow-md transition-[transform,box-shadow,opacity] duration-500 disabled:opacity-50"
-                disabled={slide == 0}
+                disabled={activeSlide === 0}
                 onClick={() => {
-                  if (slide > 0) setSlide(slide - 1);
+                  if (activeSlide > 0) setSlide(activeSlide - 1);
                 }}
               >
                 <FiArrowLeft />
               </motion.button>
             )}
             <button
+              disabled={filteredJourneys.length === 0}
               className="p-3 h-10 w-10 bg-white font-medium text-black rounded-full hover:scale-110 hover:shadow-md transition-[transform,box-shadow] duration-500 flex"
               onClick={() => {
                 setSelected(!selected);
@@ -164,9 +146,10 @@ export default function JourneyPage({ journeys }: { journeys: Journey[] }) {
                 key="right"
                 exit={{ opacity: 0 }}
                 className="p-3 bg-gradient-to-bl from-neutral-400/10 to-neutral-900/10 ring-1 ring-neutral-300/5 ring-inset font-medium text-neutral-50 rounded-full hover:scale-110 hover:shadow-md transition-[transform,box-shadow,opacity] duration-500 disabled:opacity-50"
-                disabled={slide == 4 || slide == filteredJourneys.length - 1}
+                disabled={activeSlide >= filteredJourneys.length - 1}
                 onClick={() => {
-                  if (slide < 4) setSlide(slide + 1);
+                  if (activeSlide < filteredJourneys.length - 1)
+                    setSlide(activeSlide + 1);
                 }}
               >
                 <FiArrowRight />

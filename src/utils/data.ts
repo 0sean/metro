@@ -40,20 +40,23 @@ export const getStation = cache(
   },
 );
 
-type Day = "weekday" | "saturday" | "sunday";
-
 export type Journey = {
   from: StopTime;
   to: StopTime;
   line: Line;
-  day: Day;
+  service: Pick<
+    Service,
+    | "monday"
+    | "tuesday"
+    | "wednesday"
+    | "thursday"
+    | "friday"
+    | "saturday"
+    | "sunday"
+    | "start_date"
+    | "end_date"
+  >;
 };
-
-function getDay(service: Service) {
-  if (service.saturday) return "saturday";
-  if (service.sunday) return "sunday";
-  return "weekday";
-}
 
 export const getJourneys = cache(async (from: string, to: string) => {
   const trips = await getTrips(),
@@ -88,7 +91,17 @@ export const getJourneys = cache(async (from: string, to: string) => {
       from: fromStop,
       to: toStop,
       line: trip.line,
-      day: getDay(trip.service),
+      service: {
+        monday: trip.service.monday,
+        tuesday: trip.service.tuesday,
+        wednesday: trip.service.wednesday,
+        thursday: trip.service.thursday,
+        friday: trip.service.friday,
+        saturday: trip.service.saturday,
+        sunday: trip.service.sunday,
+        start_date: trip.service.start_date,
+        end_date: trip.service.end_date,
+      },
     } as Journey;
   });
 });
